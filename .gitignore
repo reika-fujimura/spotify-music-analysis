@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# secret files
+spotify-music-analyses/params.py
+spotify-music-analyses/data/*
