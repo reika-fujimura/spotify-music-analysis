@@ -129,5 +129,6 @@ dmypy.json
 .pyre/
 
 # secret files
-spotify-music-analyses/params.py
-spotify-music-analyses/data/*
+*/params.py
+*/data/*
+*/develop*
