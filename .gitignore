@@ -130,5 +130,8 @@ dmypy.json
 
 # secret files
 */params.py
+
+# additional files
+.DS_Store
 */data/*
 */develop*

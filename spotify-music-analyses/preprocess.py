@@ -1,8 +1,11 @@
 import os
 import logging
 import argparse
+import multiprocessing as mp
+import csv
 
 import pandas as pd
+import dask.dataframe as dd
 import numpy as np
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -10,53 +13,138 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from params import Client_ID, Client_Secret, SPOTIPY_REDIRECT_URI
 
 
+def create_feature_data(
+    df_chunk: pd.DataFrame, 
+    save_path: str
+    ):  
+    auth_manager = SpotifyClientCredentials()
+    sp = spotipy.Spotify(auth_manager=auth_manager)
+    keys = ['danceability', 'energy', 'key', 'loudness', 'mode', 
+            'speechiness', 'acousticness', 'instrumentalness', 
+            'liveness', 'valence', 'tempo', 'duration_ms', 'time_signature']
+    
+    logging.info('2. Started process to the save path {}.'.format(save_path))
+    
+    features = np.ndarray((df_chunk.shape[0], len(keys)))
+    urls = list(df_chunk['url'])
+
+    for i in range(df_chunk.shape[0]):
+        url = urls[i]
+        auth_manager = SpotifyClientCredentials()
+        sp = spotipy.Spotify(auth_manager=auth_manager)
+        d = sp.audio_features(url)[0]
+        features[i,:] = [d[key] for key in keys]
+        
+    df_chunk = pd.concat([df_chunk, pd.DataFrame(features, columns = keys)], axis=1)
+    df_chunk.to_csv(save_path)
+    logging.info('3. Ended process and saved in {}.'.format(save_path))
+
+def create_feature_data_wrapper(args):
+    return create_feature_data(*args)
+
+def feature_multiprocessing(
+    df: pd.DataFrame, 
+    save_dir: str, 
+    pool_size: int, 
+    csv_size: int
+    ):
+    pool = mp.Pool(pool_size)
+    chunk_size = csv_size // pool_size
+    rem = csv_size % pool_size
+    values = []
+    start_line = 0
+    for i in range(pool_size):
+        logging.info('1. Process start: thread num: {0}, start_line: {1}'.format(i, start_line))
+        save_path = save_dir + '{}'.format(i) + '.csv'
+        if i <= rem:
+            end_line = start_line + chunk_size + 1
+            values.append((df.iloc[start_line:end_line, :].reset_index(drop=True), save_path))
+            start_line += chunk_size + 1
+        else:
+            end_line = start_line + chunk_size
+            values.append((df.iloc[start_line:end_line, :].reset_index(drop=True), save_path))
+            start_line += chunk_size 
+    
+    pool.map(create_feature_data_wrapper, values)
+    pool.close() # clear memory
+    pool.join()
+
 def concat_dataset(
-    dpath: str, 
-    spath: str
+    data_path: str, 
+    save_dir: str,
+    pool_size: int,
+    country: str,
+    suffix: str,
+    year: int
     ): 
     '''
     Extract the features of the songs on Spotify Chart Dataset from Spotify's API.
     Source: Spotify Chart from Kaggle Dataset
     https://www.kaggle.com/datasets/dhruvildave/spotify-charts
     '''
-    df = pd.read_csv(dpath)
-
-    logging.info('data size: {}'.format(df.shape))
-
-    auth_manager = SpotifyClientCredentials()
-    sp = spotipy.Spotify(auth_manager=auth_manager)
-    l_url = df.url.to_list()
-
+    usecols = ['title','rank','date','artist','url','region','chart','streams']
+    datecol = ['date']
     keys = ['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness', 
             'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo', 
             'duration_ms', 'time_signature']
-    features = np.ndarray((df.shape[0], len(keys)))
+            
+    df_dask = dd.read_csv('data/charts.csv', 
+                        usecols=usecols,
+                        parse_dates=datecol,
+                        dtype={
+                            'title':'str',
+                            'rank':'float64',
+                            'date':'str',
+                            'artist':'str',
+                            'url':'str',
+                            'region':'category',
+                            'chart':'category',
+                            'streams':'float64'
+                            }
+                        )
+    df_dask = df_dask.query("chart=='top200'")
+    df_dask = df_dask[df_dask['region']==country]
 
-    for i in range(len(l_url)):
-        url = l_url[i]
-        d = sp.audio_features(url)[0]
-        features[i,:] = [d[key] for key in keys]
+    df = df_dask.compute() # convert to pandas dataframe
 
-    df[keys] = pd.DataFrame(features, columns = keys)
-    df.save_csv(spath)
+    def timestamp_to_year(timestamp):
+        return timestamp.year
+    df['year'] = df.date.apply(timestamp_to_year)
+    df = df[df['year']==year].drop(columns='year')
+
+    logging.info('Data size: {}'.format(df.shape))
+
+    csv_size = df.shape[0]
+    save_dir = save_dir + str(year) + '/'
+    # feature_multiprocessing(df, save_dir, pool_size, csv_size)
+
+    feature_multiprocessing(df[:1000], save_dir, pool_size, csv_size)
 
     return None
 
 
 if __name__ == '__main__':
     data_path = 'data/charts.csv'
-    save_path = 'data/features.csv'
+    save_dir = 'data/tmp/'
 
     os.environ['SPOTIPY_CLIENT_ID'] = Client_ID
     os.environ['SPOTIPY_CLIENT_SECRET'] = Client_Secret
     os.environ['SPOTIPY_REDIRECT_URI'] = SPOTIPY_REDIRECT_URI
 
     parser = argparse.ArgumentParser(description='Merge datasets.')
-    parser.add_argument('--dpath', default=data_path, help='load path')
-    parser.add_argument('--spath', default=save_path, help='save path')
+    parser.add_argument('country', type=str, help='country name')
+    parser.add_argument('suffix', type=str, help='save file suffix')
+    parser.add_argument('--data_path', default=data_path, help='load path')
+    parser.add_argument('--save_dir', default=save_dir, help='output directry')
+    parser.add_argument('--pool_size', default=100, help='multiprocessing core number')
+    parser.add_argument('--year', default=2021, help='year')
     args = parser.parse_args()
 
     concat_dataset(
-        dpath = args.dpath,
-        spath = args.spath
+        data_path = args.data_path,
+        save_dir = args.save_dir,
+        pool_size = args.pool_size,
+        country = args.country,
+        suffix = args.suffix,
+        year = args.year
     )
