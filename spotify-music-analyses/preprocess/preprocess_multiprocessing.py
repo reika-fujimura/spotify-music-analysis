@@ -10,7 +10,7 @@ import numpy as np
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from params import Client_ID, Client_Secret, SPOTIPY_REDIRECT_URI
+from utils.params import Client_ID, Client_Secret
 
 
 def create_feature_data(
@@ -23,7 +23,7 @@ def create_feature_data(
             'speechiness', 'acousticness', 'instrumentalness', 
             'liveness', 'valence', 'tempo', 'duration_ms', 'time_signature']
     
-    logging.info('2. Started process to the save path {}.'.format(save_path))
+    logger.info('2. Started process to the save path {}.'.format(save_path))
     
     features = np.ndarray((df_chunk.shape[0], len(keys)))
     urls = list(df_chunk['url'])
@@ -37,7 +37,7 @@ def create_feature_data(
         
     df_chunk = pd.concat([df_chunk, pd.DataFrame(features, columns = keys)], axis=1)
     df_chunk.to_csv(save_path)
-    logging.info('3. Ended process and saved in {}.'.format(save_path))
+    logger.info('3. Ended process and saved in {}.'.format(save_path))
 
 def create_feature_data_wrapper(args):
     return create_feature_data(*args)
@@ -54,7 +54,7 @@ def feature_multiprocessing(
     values = []
     start_line = 0
     for i in range(pool_size):
-        logging.info('1. Process start: thread num: {0}, start_line: {1}'.format(i, start_line))
+        logger.info('1. Process start: thread num: {0}, start_line: {1}'.format(i, start_line))
         save_path = save_dir + '{}'.format(i) + '.csv'
         if i <= rem:
             end_line = start_line + chunk_size + 1
@@ -112,13 +112,13 @@ def concat_dataset(
     df['year'] = df.date.apply(timestamp_to_year)
     df = df[df['year']==year].drop(columns='year')
 
-    logging.info('Data size: {}'.format(df.shape))
+    logger.info('Data size: {}'.format(df.shape))
 
     csv_size = df.shape[0]
     save_dir = save_dir + str(year) + '/'
-    # feature_multiprocessing(df, save_dir, pool_size, csv_size)
-
-    feature_multiprocessing(df[:1000], save_dir, pool_size, csv_size)
+    os.makedirs(os.path.dirname(save_dir), exist_ok=True)
+    
+    feature_multiprocessing(df, save_dir, pool_size, csv_size)
 
     return None
 
@@ -129,7 +129,9 @@ if __name__ == '__main__':
 
     os.environ['SPOTIPY_CLIENT_ID'] = Client_ID
     os.environ['SPOTIPY_CLIENT_SECRET'] = Client_Secret
-    os.environ['SPOTIPY_REDIRECT_URI'] = SPOTIPY_REDIRECT_URI
+
+    logger = logging.getLogger('logger')
+    logger.setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser(description='Merge datasets.')
     parser.add_argument('country', type=str, help='country name')
