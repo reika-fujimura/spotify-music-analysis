@@ -3,13 +3,43 @@ import logging
 import argparse
 import csv
 from pathlib import Path
+import glob
 
 import pandas as pd
 import numpy as np
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from utils.params import Client_ID, Client_Secret, SPOTIPY_REDIRECT_URI
+from utils.params import Client_ID, Client_Secret
+
+
+# global variable
+columns = {
+    1: 'title',
+    2: 'rank',
+    3: 'date',
+    4: 'artist',
+    5: 'url',
+    6: 'region',
+    7: 'chart',
+    8: 'streams', 
+    9: 'year',
+    10: 'month',
+    11: 'danceability', 
+    12: 'energy',
+    13: 'key', 
+    14: 'loudness', 
+    15: 'mode', 
+    16: 'speechiness', 
+    17: 'acousticness', 
+    18: 'instrumentalness', 
+    19: 'liveness', 
+    20: 'valence', 
+    21: 'tempo', 
+    22: 'duration_ms', 
+    23: 'time_signature',
+    24: 'null' 
+}
 
 
 def processing(line):
@@ -24,16 +54,15 @@ def create_feature_data(load_path, save_path):
     with open(load_path,'r') as load_file, open(save_path,'w') as save_file:
         datareader = csv.reader(load_file)
         next(datareader)
-        count = 0
         for line in datareader:
             save_line = processing(line)
             save_file.write(save_line)
             save_file.write('\n')
-            count += 1
-            if count%500 == 0:
-                logger.info(count)
 
-        return None
+    # remove intermidiate files
+    p = Path(load_path)
+    p.unlink()
+    return None
 
 def concat_feature(
     data_dir: str,
@@ -50,13 +79,34 @@ def concat_feature(
     file_list = [filename for filename in files if filename.split('.')[1]=='csv']
 
     for filename in file_list:
-        load_path = data_dir + filename.split('/')[-1]
-        save_path = save_dir + filename.split('/')[-1]
-        create_feature_data(load_path, save_path)
-        logger.info('saved to {}'.format(save_path))
-    
-    p = Path(data_dir)
-    p.unlink
+        load_path = data_dir + filename
+        save_path = save_dir + filename
+        if not os.path.exists(save_path):
+            create_feature_data(load_path, save_path)
+            logger.info('saved to {}'.format(save_path))
+
+    # concatenate all intermidiate files
+    def read_csv(file):
+        df = pd.read_csv(file, index_col=0, header=None, on_bad_lines='skip').rename(columns=columns)
+        df = df.drop(columns='null')
+        return df
+
+    files = glob.glob(save_dir+'*.csv')
+    df_all = pd.concat(map(read_csv, files), ignore_index=True)
+    save_path = save_dir+'all.csv'
+
+    # remove intermidiate files
+    p = Path(save_dir)
+    for x in p.iterdir():
+        if x.is_file():
+            x.unlink()
+
+    def str_to_datetime(s):
+        if len(s.split('-'))==3:
+            return pd.to_datetime(s)
+
+    df_all['date'] = df_all.date.apply(str_to_datetime)
+    df_all.to_csv(save_path, index=False)
 
     return None
 
@@ -66,7 +116,6 @@ if __name__ == '__main__':
 
     os.environ['SPOTIPY_CLIENT_ID'] = Client_ID
     os.environ['SPOTIPY_CLIENT_SECRET'] = Client_Secret
-    os.environ['SPOTIPY_REDIRECT_URI'] = SPOTIPY_REDIRECT_URI
 
     logger = logging.getLogger('logger')
     logger.setLevel(logging.DEBUG)

@@ -52,13 +52,14 @@ def separate_source_dataset(
         return timestamp.year
     def timestamp_to_month(timestamp):
         return timestamp.month
-    def timestamp_to_yearmonth(timestamp):
-        return str(timestamp.year) + '-' + str(timestamp.month)
+    def remove_comma(s):
+        return s.split(',')[0]
 
     df['year'] = df.date.apply(timestamp_to_year)
     df['month'] = df.date.apply(timestamp_to_month)
-    df['yearmonth'] = df.date.apply(timestamp_to_yearmonth)
-    df = df[df['year']==year].drop(columns='year')
+    df = df[df['year']==int(year)]
+    df['title'] = df.title.apply(remove_comma)
+    df['artist'] = df.artist.apply(remove_comma)
     
     for month in range(1,13):
         save_path = save_dir + '{}.csv'.format(str(month))
