@@ -53,6 +53,8 @@ def separate_source_dataset(
     def timestamp_to_month(timestamp):
         return timestamp.month
     def remove_comma(s):
+        if type(s)!= str:
+            return None
         return s.split(',')[0]
 
     df['year'] = df.date.apply(timestamp_to_year)

@@ -67,7 +67,7 @@ def feature_multiprocessing(
     
     pool.map(create_feature_data_wrapper, values)
     pool.close() # clear memory
-    pool.join()
+    pool.join() # wait for all processes
 
 def concat_dataset(
     data_path: str, 
