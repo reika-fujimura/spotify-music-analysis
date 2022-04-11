@@ -129,10 +129,11 @@ dmypy.json
 .pyre/
 
 # secret files
-*/params.py
+**/params.py
 
 # additional files
 .DS_Store
-*/data
-*/preprocess/data
-*/develop*
+**/_archive
+**/data/*
+**/develop*
+**/demo*
