@@ -133,7 +133,7 @@ if __name__ == '__main__':
     concat_feature(
         data_dir = args.data_dir,
         save_dir = args.save_dir,
-        suffix = args.suffix,
+        suffix = str(args.suffix),
         year = args.year
     )
 

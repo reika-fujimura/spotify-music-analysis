@@ -134,5 +134,6 @@ dmypy.json
 # additional files
 .DS_Store
 **/_archive
-**/data
+**/data/*
 **/develop*
+**/demo*

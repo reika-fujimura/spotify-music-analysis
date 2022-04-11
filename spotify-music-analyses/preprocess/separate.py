@@ -90,8 +90,8 @@ if __name__ == '__main__':
     separate_source_dataset(
         data_path = args.data_path,
         save_dir = args.save_dir,
-        country = args.country,
-        suffix = args.suffix,
+        country = str(args.country),
+        suffix = str(args.suffix),
         year = args.year
     )
 
