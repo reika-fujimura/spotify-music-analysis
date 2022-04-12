@@ -1,7 +1,7 @@
 # spotify-music-analysis
 
 
-Music trend analysis with Spotify's API.
+Music trend analysis with Spotify's API. Detailed explanations are written [here](https://reikakfujimura.wixsite.com/reikafujimura/post/spotify-music-analysis).
 
 ## Dataset
 
@@ -12,7 +12,7 @@ pd.read_csv(dpath, nrows=5)
 ```
 ![alt text](spotify-music-analyses/images/charts.png?raw=true)
 
-With music url in chart dataset, connect music features which are offered by the Python library for the Spotify Web API (spotipy). Learn more about spotipy [here](https://spotipy.readthedocs.io/en/2.19.0/).
+Using track url, connect music features which are offered by the Python library for the Spotify Web API (spotipy). Learn more about spotipy [here](https://spotipy.readthedocs.io/en/2.19.0/).
 
 Music features
 
@@ -72,7 +72,7 @@ Trends of US and Canada is quite simular.
 
 ### Features' distribution of top200 songs (Comparison of US and Japan)
 
-There are big differences between the trend of US and Japan. Most listened songs in Japan tend to have less dansability, more energy, more loudness, less speachness, more variance, and longer duration time.
+There are big differences between the trend of US and Japan. Most listened songs in Japan tend to have less dansability, more energy, more loudness, less speachness, more variance, and longer duration time. 
 
 ![alt text](spotify-music-analyses/images/us_jp.png?raw=true)
 
